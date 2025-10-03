@@ -79,7 +79,8 @@ colors=['red','yellow','pink']
 for i in incidents:
     list_ips.append(i["ip"])
     list_count.append(i["count"])
-plt.figure(figsize=(12,5))
+#Leahy - Made figure wider so as IPs don't overlap.
+plt.figure(figsize=(20,5)) 
 plt.bar(list_ips, list_count)
 plt.title("Top attacker IPs")
 plt.xlabel("IP")
@@ -89,3 +90,5 @@ plt.savefig("top_attackers.png")
 plt.show()
 end = time.time()
 print("Elapsed:", end-start, "seconds")
+
+
