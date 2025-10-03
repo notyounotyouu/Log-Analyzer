@@ -1,6 +1,6 @@
 # scripting-CA1-
 
 Group members:
-  1. Nithin kumaran C00313547
+  1. Emmett Leahy C00311509
   2. Joel Biju  C00312179
-  3. Emmett Leahy  
+  3. Nithin kumarang C00313547
