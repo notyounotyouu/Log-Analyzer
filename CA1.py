@@ -79,13 +79,21 @@ colors=['red','yellow','pink']
 for i in incidents:
     list_ips.append(i["ip"])
     list_count.append(i["count"])
+
 plt.figure(figsize=(12,5))
-plt.bar(list_ips, list_count)
-plt.title("Top attacker IPs")
-plt.xlabel("IP")
-plt.ylabel("Failed attempts")
+
+plt.figure(figsize=(12,5))
+
+# Histogram of failed attempts
+plt.hist(list_count, bins=10, color='skyblue', edgecolor='black')  # adjust bins as needed
+
+# Labels and title
+plt.title("Distribution of Failed Attempts per IP")
+plt.xlabel("Number of Failed Attempts")
+plt.ylabel("Number of IPs")
+
 plt.tight_layout()
-plt.savefig("top_attackers.png")
+plt.savefig("failed_attempts_hist.png")
 plt.show()
 end = time.time()
 print("Elapsed:", end-start, "seconds")
