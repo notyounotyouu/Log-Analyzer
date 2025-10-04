@@ -6,31 +6,31 @@ from datetime import timedelta
 import matplotlib.pyplot as plt
 import time
 
-start = time.time() #timing gear
+start = time.time()     #timing gear
 LOGFILE = "log_file.log"
 sorted_list=[] 
 output={}
-sucpicious_tools_ip = set() #
+sucpicious_tools_ip = set()     #a set of all suspicious unique ip address
 
 
 def parse_auth_line(line):
     parts = line.split()
-    ts_str = " ".join(parts[0:3]) 
+    ts_str = " ".join(parts[0:3])   #gets the date with a space between
     try:
-        ts = datetime.strptime(f"2025 {ts_str}", "%Y %b %d %H:%M:%S") 
+        ts = datetime.strptime(f"2025 {ts_str}", "%Y %b %d %H:%M:%S")   # adds 2025 to the start of the log date
 
     except ValueError:
         ts = None
-    ip = None
-    event_type = "other" 
+    ip = None   #sets the ip to none initially
+    event_type = "other"    #sets the event type to other initially
     if "Failed password" in line:
         event_type = "failed" 
     elif "Accepted password" in line or "Accepted publickey" in line:
         event_type = "accepted" 
-    if " from " in line: 
+    if " from " in line:    #looking for ip using from keyword
         try:
-            idx = parts.index("from") 
-            ip = parts[idx+1]
+            idx = parts.index("from")   #logs the index of the word from
+            ip = parts[idx+1]   #gets ip address
         except (ValueError, IndexError):
             ip = None
     return ts, ip, event_type
@@ -39,28 +39,42 @@ def parse_auth_line(line):
 
 def parse_http_line(line):
     try:
-        split_line = line.split()
-        ip = split_line[0]
+        split_line = line.split()   #splits the log line using spaces
+        ip = split_line[0]  #Apache log files have ip address in the beginning
 
-        # token looks like: '[04/Oct/2025:12:34:56' -> remove leading '['
-        ts_token = split_line[3][1:]
-        # ts_token example: "04/Oct/2025:12:34:56"
-        # Reformat to "2025 Oct 04 12:34:56" to match your "%Y %b %d %H:%M:%S" spec
+        ts_token = split_line[3][1:]    #gets the split up date and removes the [
         try:
-            day, month, rest = ts_token.split('/', 2)      # ['04','Oct','2025:12:34:56']
-            year, time_part = rest.split(':', 1)           # ['2025', '12:34:56']
-            ts_formatted = f"{year} {month} {day} {time_part}"
-            ts = datetime.strptime(ts_formatted, "%Y %b %d %H:%M:%S")
-        except Exception:
-            # fallback: try apache format directly
+            day, month, rest = ts_token.split('/', 2)      # splits the [10/Mar/2025:15:46:11 +0000] to ['10','March','2025:15:46:11 +0000']
+            year, time_part = rest.split(':', 1)           # splits this 2025:15:46:11 +0000 to ['2025','15:46:11 +0000'] because of ,1)
+            ts_formatted = f"{year} {month} {day} {time_part}"  #puts all the split elements from above into a format string
+            ts = datetime.strptime(ts_formatted, "%Y %b %d %H:%M:%S")   # reformatted time stamp string
+        except Exception:   #error handling logic
             try:
                 ts = datetime.strptime(ts_token.split()[0], "%d/%b/%Y:%H:%M:%S")
             except Exception:
                 ts = None
 
-        request = " ".join(split_line[5:8]).strip('"') if len(split_line) > 7 else ""
-        status = split_line[8] if len(split_line) > 8 else ""
-        ua = " ".join(split_line[11:]).strip('"').lower() if len(split_line) > 11 else ""
+        if len(split_line) > 7:
+    # Safely select and join the elements, then remove the quotes
+            request_tokens = split_line[5:8]
+            request = " ".join(request_tokens).strip('"')
+        else:
+            request = ""
+
+    # --- 2. Get the Status Code (Index 8) ---
+        if len(split_line) > 8:
+            status = split_line[8]
+        else:
+            status = ""
+
+    # --- 3. Get the User Agent (Index 11 to the End) ---
+        if len(split_line) > 11:
+    # Safely select ALL remaining elements
+            ua_tokens = split_line[11:]
+    # Join them, remove quotes, and convert to lowercase
+            ua = " ".join(ua_tokens).strip('"').lower()
+        else:
+            ua = ""
 
         event_type = "other"
         if status.startswith('4') or status.startswith('5'):
@@ -78,7 +92,7 @@ def parse_http_line(line):
 
 
 def is_http_line(line):
-    return line[0].isdigit() and ("[" in line and "]" in line and '"' in line)
+    return line[0].isdigit() and ("[" in line and "]" in line and '"' in line) # checking the apache style log entries and return boolean value
 
 if __name__ == "__main__":
     per_ip_timestamps = defaultdict(list) 
