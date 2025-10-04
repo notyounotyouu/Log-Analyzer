@@ -8,8 +8,9 @@ import time
 
 start = time.time() #timing gear
 LOGFILE = "log_file.log"
-sorted_list=[]
+sorted_list=[] 
 output={}
+sucpicious_tools_ip = set() #
 
 
 def parse_auth_line(line):
@@ -40,25 +41,40 @@ def parse_http_line(line):
     try:
         split_line = line.split()
         ip = split_line[0]
-        #now we have to get the timestamp
-        ts_str = split_line[3][1:] #this gets the 3rd index element which is the date and time and we slice it to remove the starting [
-        ts = datetime.strptime(ts_str, "%Y-%b-%d %H:%M:%S") #convert to datetime object
-        request = " ".join(split_line[5:8]).strip('"')
-        status =parts[8]
-        ua = " ".join(split_line[11:]).strip('"').lower()
+
+        # token looks like: '[04/Oct/2025:12:34:56' -> remove leading '['
+        ts_token = split_line[3][1:]
+        # ts_token example: "04/Oct/2025:12:34:56"
+        # Reformat to "2025 Oct 04 12:34:56" to match your "%Y %b %d %H:%M:%S" spec
+        try:
+            day, month, rest = ts_token.split('/', 2)      # ['04','Oct','2025:12:34:56']
+            year, time_part = rest.split(':', 1)           # ['2025', '12:34:56']
+            ts_formatted = f"{year} {month} {day} {time_part}"
+            ts = datetime.strptime(ts_formatted, "%Y %b %d %H:%M:%S")
+        except Exception:
+            # fallback: try apache format directly
+            try:
+                ts = datetime.strptime(ts_token.split()[0], "%d/%b/%Y:%H:%M:%S")
+            except Exception:
+                ts = None
+
+        request = " ".join(split_line[5:8]).strip('"') if len(split_line) > 7 else ""
+        status = split_line[8] if len(split_line) > 8 else ""
+        ua = " ".join(split_line[11:]).strip('"').lower() if len(split_line) > 11 else ""
+
+        event_type = "other"
+        if status.startswith('4') or status.startswith('5'):
+            event_type = "failed"
+        if any(x in request.lower() for x in ['admin', 'login', 'phpinfo', 'secret', 'passwd']):
+            event_type = "failed"
+        if any(tool in ua for tool in ['sqlmap', 'curl', 'wget']):
+            event_type = "failed"
+
+        # return values: ts, ip, event_type, request, status, ua
+        return ts, ip, event_type, request, status, ua
+
     except Exception:
-        return None,None,"other"
-
-    event_type = "other"
-    if status.startswith('4') or status.startswith('5'):
-        event_type = "failed"
-    if any(x in request.lower() for x in ['admin', 'login', 'phpinfo', 'secret', 'passwd']):
-        event_type ="failed"
-    if any (tool in ua for tool in ['sqlmap', 'curl', 'wget']):
-        event_type = "failed"
-
-    return ip,ts,event_type
-
+        return None, None, "other", None, None, None
 
 
 def is_http_line(line):
@@ -69,7 +85,16 @@ if __name__ == "__main__":
     with open(LOGFILE) as f: 
         for line in f: 
             if is_http_line(line):
-                ts,ip,event = parse_http_line(line)
+                ts,ip,event,request,status,ua = parse_http_line(line)
+                if ts and ip:
+                    request_lower = request.lower() #converts the requests to lower case
+                    ua_lower = ua.lower() #converts the ua to lower case 
+                    keywords = ['login', 'admin', 'phpinfo', 'secret', 'passwd']
+                    tools = ['sqlmap', 'curl', 'wget']
+                    if any(k in request_lower for k in keywords) and any(t in ua_lower for t in tools):
+                        sucpicious_tools_ip.add(ip)
+
+
             else:    
                 ts, ip, event = parse_auth_line(line) 
                 #This if statement will run for failed attement for either https and ssh logs
@@ -115,6 +140,14 @@ for i in incidents:
     list_ips.append(i["ip"])
     list_count.append(i["count"])
 
+print("IPs using tools and accessing suspicious paths: ")
+for ip in sucpicious_tools_ip:
+    print(ip)
+
+end = time.time()
+print("Elapsed:", end-start, "seconds")
+"""    
+
 plt.figure(figsize=(12,5))
 
 plt.figure(figsize=(12,5))
@@ -129,7 +162,6 @@ plt.ylabel("Number of IPs")
 
 plt.tight_layout()
 plt.savefig("failed_attempts_hist.png")
-plt.show()
-end = time.time()
-print("Elapsed:", end-start, "seconds")
-#this shit is for pushing 
+plt.show()"""
+
+#this shit is for pushing  
