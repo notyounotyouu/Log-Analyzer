@@ -35,12 +35,70 @@ def parse_auth_line(line):
             ip = None
     return ts, ip, event_type
 
+
+
+def parse_http_line(line):
+    try:
+        split_line = line.split()
+        ip = split_line[0]
+
+        # token looks like: '[04/Oct/2025:12:34:56' -> remove leading '['
+        ts_token = split_line[3][1:]
+        # ts_token example: "04/Oct/2025:12:34:56"
+        # Reformat to "2025 Oct 04 12:34:56" to match your "%Y %b %d %H:%M:%S" spec
+        try:
+            day, month, rest = ts_token.split('/', 2)      # ['04','Oct','2025:12:34:56']
+            year, time_part = rest.split(':', 1)           # ['2025', '12:34:56']
+            ts_formatted = f"{year} {month} {day} {time_part}"
+            ts = datetime.strptime(ts_formatted, "%Y %b %d %H:%M:%S")
+        except Exception:
+            # fallback: try apache format directly
+            try:
+                ts = datetime.strptime(ts_token.split()[0], "%d/%b/%Y:%H:%M:%S")
+            except Exception:
+                ts = None
+
+        request = " ".join(split_line[5:8]).strip('"') if len(split_line) > 7 else ""
+        status = split_line[8] if len(split_line) > 8 else ""
+        ua = " ".join(split_line[11:]).strip('"').lower() if len(split_line) > 11 else ""
+
+        event_type = "other"
+        if status.startswith('4') or status.startswith('5'):
+            event_type = "failed"
+        if any(x in request.lower() for x in ['admin', 'login', 'phpinfo', 'secret', 'passwd']):
+            event_type = "failed"
+        if any(tool in ua for tool in ['sqlmap', 'curl', 'wget']):
+            event_type = "failed"
+
+        # return values: ts, ip, event_type, request, status, ua
+        return ts, ip, event_type, request, status, ua
+
+    except Exception:
+        return None, None, "other", None, None, None
+
+
+def is_http_line(line):
+    return line[0].isdigit() and ("[" in line and "]" in line and '"' in line)
+
 if __name__ == "__main__":
-    per_ip_timestamps = defaultdict(list) # dictionary declaration
-    with open(LOGFILE) as f: #opening the file
-        for line in f: #chopping it line by line
-            ts, ip, event = parse_auth_line(line) # calling the function and returning the values
-            if ts and ip and event == "failed":   # checks that ts and ip are not null, and that event=="failed"
+    per_ip_timestamps = defaultdict(list) 
+    with open(LOGFILE) as f: 
+        for line in f: 
+            if is_http_line(line):
+                ts,ip,event,request,status,ua = parse_http_line(line)
+                if ts and ip:
+                    request_lower = request.lower() #converts the requests to lower case
+                    ua_lower = ua.lower() #converts the ua to lower case 
+                    keywords = ['login', 'admin', 'phpinfo', 'secret', 'passwd']
+                    tools = ['sqlmap', 'curl', 'wget']
+                    if any(k in request_lower for k in keywords) and any(t in ua_lower for t in tools):
+                        sucpicious_tools_ip.add(ip)
+
+
+            else:    
+                ts, ip, event = parse_auth_line(line) 
+                #This if statement will run for failed attement for either https and ssh logs
+            if ts and ip and event == "failed":   
                 per_ip_timestamps[ip].append(ts)
 
     for ip, ts in per_ip_timestamps.items():
@@ -81,14 +139,11 @@ colors=['red','yellow','pink']
 for i in incidents:
     list_ips.append(i["ip"])
     list_count.append(i["count"])
-plt.figure(figsize=(12,5))
-plt.bar(list_ips, list_count)
-plt.title("Top attacker IPs")
-plt.xlabel("IP")
-plt.ylabel("Failed attempts")
-plt.tight_layout()
-plt.savefig("top_attackers.png")
-plt.show()
+
+print("IPs using tools and accessing suspicious paths: ")
+for ip in sucpicious_tools_ip:
+    print(ip)
+
 end = time.time()
 print("Elapsed:", end-start, "seconds")
 """    
