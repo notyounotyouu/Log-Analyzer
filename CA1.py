@@ -14,31 +14,66 @@ output={}
 
 def parse_auth_line(line):
     parts = line.split()
-    ts_str = " ".join(parts[0:3]) # this joins the first three parts i.e month, day, time
+    ts_str = " ".join(parts[0:3]) 
     try:
-        ts = datetime.strptime(f"2025 {ts_str}", "%Y %b %d %H:%M:%S") # assume 2025 is the year year, month, day, hour, minute, second
-    except Exception: # return none if timestamp parsing fails
+        ts = datetime.strptime(f"2025 {ts_str}", "%Y %b %d %H:%M:%S") 
+
+    except ValueError:
         ts = None
     ip = None
-    event_type = "other" # default event type
+    event_type = "other" 
     if "Failed password" in line:
-        event_type = "failed" #setting condition for failed event
+        event_type = "failed" 
     elif "Accepted password" in line or "Accepted publickey" in line:
-        event_type = "accepted" #setting condition for accepted event
-    if " from " in line: #parsing the ip address
+        event_type = "accepted" 
+    if " from " in line: 
         try:
-            idx = parts.index("from") # all the usual things
+            idx = parts.index("from") 
             ip = parts[idx+1]
         except (ValueError, IndexError):
             ip = None
     return ts, ip, event_type
 
+
+
+def parse_http_line(line):
+    try:
+        split_line = line.split()
+        ip = split_line[0]
+        #now we have to get the timestamp
+        ts_str = split_line[3][1:] #this gets the 3rd index element which is the date and time and we slice it to remove the starting [
+        ts = datetime.strptime(ts_str, "%Y-%b-%d %H:%M:%S") #convert to datetime object
+        request = " ".join(split_line[5:8]).strip('"')
+        status =parts[8]
+        ua = " ".join(split_line[11:]).strip('"').lower()
+    except Exception:
+        return None,None,"other"
+
+    event_type = "other"
+    if status.startswith('4') or status.startswith('5'):
+        event_type = "failed"
+    if any(x in request.lower() for x in ['admin', 'login', 'phpinfo', 'secret', 'passwd']):
+        event_type ="failed"
+    if any (tool in ua for tool in ['sqlmap', 'curl', 'wget']):
+        event_type = "failed"
+
+    return ip,ts,event_type
+
+
+
+def is_http_line(line):
+    return line[0].isdigit() and ("[" in line and "]" in line and '"' in line)
+
 if __name__ == "__main__":
-    per_ip_timestamps = defaultdict(list) # dictionary declaration
-    with open(LOGFILE) as f: #opening the file
-        for line in f: #chopping it line by line
-            ts, ip, event = parse_auth_line(line) # calling the function and returning the values
-            if ts and ip and event == "failed":   # checks that ts and ip are not null, and that event=="failed"
+    per_ip_timestamps = defaultdict(list) 
+    with open(LOGFILE) as f: 
+        for line in f: 
+            if is_http_line(line):
+                ts,ip,event = parse_http_line(line)
+            else:    
+                ts, ip, event = parse_auth_line(line) 
+                #This if statement will run for failed attement for either https and ssh logs
+            if ts and ip and event == "failed":   
                 per_ip_timestamps[ip].append(ts)
 
     for ip, ts in per_ip_timestamps.items():
