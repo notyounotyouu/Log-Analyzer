@@ -22,3 +22,12 @@ MaxMind
 
 Geocoder
 https://pypi.org/project/geocoder/
+
+CLI Resources 
+
+questionary - can make menu like intefaces in command line 
+https://pypi.org/project/questionary/#usage
+
+
+
+
