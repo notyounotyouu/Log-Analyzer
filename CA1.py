@@ -1,5 +1,7 @@
 # lab2.3_starter.py
 import json
+import geocoder 
+from typing import Dict, Optional 
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
@@ -91,4 +93,28 @@ plt.show()
 end = time.time()
 print("Elapsed:", end-start, "seconds")
 
+class Geolocator:
+    def Ip_Storing(self):
+        #Stores Ip's and prevents un-needed api calls
+        self.cache = {}
+    
+    def locate_ip(self, ip_address: str) -> Optional[Dict]:
+        """Get location data for an IP address"""
+        if ip_address in self.cache:
+            return self.cache[ip_address]
 
+        try:
+            geo = geocoder.ip(ip_address)
+        
+        if geo.ok:
+            location_data = {
+                'ip': ip_address,
+                'country': geo.country,
+                'region': geo.state,
+                'city': geo.city,
+                'latitude': geo.lat,
+                'longitude': geo.lng,
+                'isp': geo.org
+                }
+            }
+        
