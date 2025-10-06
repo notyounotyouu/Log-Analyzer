@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timedelta
 import matplotlib.pyplot as plt
 import time
+import geocoder as g
 
 start = time.time()     #timing gear
 LOGFILE = "log_file.log"
@@ -157,6 +158,11 @@ for i in incidents:
 print("IPs using tools and accessing suspicious paths: ")
 for ip in sucpicious_tools_ip:
     print(ip)
+    g_ip = g.ip('149.153.251.3') #example ip address as most of these ips are private ips
+    print(g_ip.country)
+
+
+
 
 end = time.time()
 print("Elapsed:", end-start, "seconds")
