@@ -123,6 +123,7 @@ class Geolocator:
         except Exception as e:
             print(f"Error locating IP {ip_address}: {e}")
         return None
+    
 
 
 
