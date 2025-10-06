@@ -99,22 +99,35 @@ class Geolocator:
         self.cache = {}
     
     def locate_ip(self, ip_address: str) -> Optional[Dict]:
-        """Get location data for an IP address"""
+        #Get location data for an IP address
         if ip_address in self.cache:
             return self.cache[ip_address]
 
         try:
             geo = geocoder.ip(ip_address)
         
-        if geo.ok:
-            location_data = {
-                'ip': ip_address,
-                'country': geo.country,
-                'region': geo.state,
-                'city': geo.city,
-                'latitude': geo.lat,
-                'longitude': geo.lng,
-                'isp': geo.org
-                }
-            }
+            if geo.ok:
+                location_data = {
+                    'ip': ip_address,
+                    'country': geo.country,
+                    'region': geo.state,
+                    'city': geo.city,
+                    'latitude': geo.lat,
+                    'longitude': geo.lng,
+                    'isp': geo.org
+                    }
+                self.cache[ip_address] = location_data
+                return location_data
+            else:
+                return None
+        except Exception as e:
+            print(f"Error locating IP {ip_address}: {e}")
+        return None
+
+
+
+            
+
+        
+            
         
