@@ -92,21 +92,22 @@ plt.savefig("top_attackers.png")
 plt.show()
 end = time.time()
 print("Elapsed:", end-start, "seconds")
-##
+
+#Retrieves geograhpic locatin based on a provided ip address
 class Geolocator:
     def Ip_Storing(self):
         #Stores Ip's and prevents un-needed api calls
         self.cache = {}
-    
+    #A method to get location data for an IP address.
     def locate_ip(self, ip_address: str) -> Optional[Dict]:
-        #Get location data for an IP address
-        if ip_address in self.cache:
+        if ip_address in self.cache: # checks if ip is already in cache (un-needed api calls)
             return self.cache[ip_address]
 
         try:
             geo = geocoder.ip(ip_address)
         
             if geo.ok:
+                #Returns basic information about IP
                 location_data = {
                     'ip': ip_address,
                     'country': geo.country,
@@ -123,8 +124,20 @@ class Geolocator:
         except Exception as e:
             print(f"Error locating IP {ip_address}: {e}")
         return None
+        
+print("\n" + "="*60)
+print("GeoLocation Analysis")
+print("="*60)
 
-##
+
+
+
+
+
+
+
+
+
 
             
 
