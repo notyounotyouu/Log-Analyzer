@@ -108,7 +108,7 @@ class IPGeolocator:
 
         try:
             geo = geocoder.ip(ip_address)
-        
+        #
             if geo.ok:
                 #Returns basic information about IP
                 location_data = {
