@@ -28,9 +28,11 @@ CLI Resources
 questionary - can make menu like intefaces in command line 
 https://pypi.org/project/questionary/#usage
 
-How to use Resources
 https://geocoder.readthedocs.io/results.html
 
+
+Free-Api key
+https://ip-api.com/docs/api:json
 
 
 
