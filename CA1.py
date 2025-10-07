@@ -1,6 +1,7 @@
 # lab2.3_starter.py
 import json
 import geocoder 
+import questionary
 from typing import Dict, Optional 
 from collections import defaultdict
 from datetime import datetime
@@ -94,10 +95,12 @@ end = time.time()
 print("Elapsed:", end-start, "seconds")
 
 #Retrieves geograhpic locatin based on a provided ip address
-class Geolocator:
+class IPGeolocator:
+
     def Ip_Storing(self):
         #Stores Ip's and prevents un-needed api calls
         self.cache = {}
+
     #A method to get location data for an IP address.
     def locate_ip(self, ip_address: str) -> Optional[Dict]:
         if ip_address in self.cache: # checks if ip is already in cache (un-needed api calls)
@@ -128,6 +131,43 @@ class Geolocator:
 print("\n" + "="*60)
 print("GeoLocation Analysis")
 print("="*60)
+
+geolocator = IPGeolocator()
+print("\nGeolocating incident IP's...")
+for incident in incidents:
+        location = geolocator.locate_ip(incident["ip"])
+        if location:
+            print(f"incident[ip]: {incident['ip']}, Location: {location['city']}, {location['region']},
+                   {location['country']}, ISP: {location['isp']}")
+        else:
+            print(f"incident[ip]: {incident['ip']}, Location: Not found")
+
+        
+country_count = defaultdict(int)
+country_ips = defaultdict(list)
+for incident in incidents:
+    location = geolocator.locate_ip(incident["ip"])
+    if location and location['country']:
+        country = location['country']
+        country_count[country] += 1
+        country_ips[country].append(incident["ip"])
+
+print("\n" + "="*60)
+print("Incident Summary by Country")
+print("="*60)
+for country, count in country_count.items():
+    ips = country_ips[country]
+    print(f"Country: {country}, Incidents: {count}, IPs: {', '.join(ips)}")
+
+if country_count
+    plt.figure(figsize=(10, 6))
+    countries = list(country_count.keys())
+    counts = list(country_count.values())
+
+    plt.bar(countries, counts, color='blue')
+    plt.title("Number of Incidents by Country")
+
+
 
 
 
