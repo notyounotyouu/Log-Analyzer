@@ -172,6 +172,7 @@ if country_count
     plt.tight_layout()
     plt.savefig("Attacks_by_country.png")
     plt.show()
+    
 
 
 
