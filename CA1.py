@@ -166,6 +166,12 @@ if country_count
 
     plt.bar(countries, counts, color='blue')
     plt.title("Number of Incidents by Country")
+    plt.xlabel("Country")
+    plt.ylabel("Total Failed attempts")
+    plt.xticks(rotation = 45)
+    plt.tight_layout()
+    plt.savefig("Attacks_by_country.png")
+    plt.show()
 
 
 
