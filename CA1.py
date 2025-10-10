@@ -6,6 +6,8 @@ from datetime import timedelta
 import matplotlib.pyplot as plt
 import time
 import geocoder as g
+import ipaddress
+import re
 
 start = time.time()     #timing gear
 LOGFILE = "log_file.log"
@@ -19,21 +21,38 @@ def parse_auth_line(line):
     ts_str = " ".join(parts[0:3])   #gets the date with a space between
     try:
         ts = datetime.strptime(f"2025 {ts_str}", "%Y %b %d %H:%M:%S")   # adds 2025 to the start of the log date
-
     except ValueError:
         ts = None
+
     ip = None   #sets the ip to none initially
     event_type = "other"    #sets the event type to other initially
+    country = None
+
     if "Failed password" in line:
         event_type = "failed" 
     elif "Accepted password" in line or "Accepted publickey" in line:
         event_type = "accepted" 
+
     if " from " in line:    #looking for ip using from keyword
         try:
             idx = parts.index("from")   #logs the index of the word from
             ip = parts[idx+1]   #gets ip address
         except (ValueError, IndexError):
             ip = None
+    ip_pattern = re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b') #regex pattern to match private ipv4 address
+    if ip and not ip_pattern.match(ip):
+        ip = None
+
+    #check if the ip is private or public
+    if ip:
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+            is_private = ip_obj.is_private
+        except ValueError:
+            ip = None
+            is_private = None
+
+
     return ts, ip, event_type
 
 
@@ -109,17 +128,20 @@ if __name__ == "__main__":
                     if any(k in request_lower for k in keywords) and any(t in ua_lower for t in tools):
                         sucpicious_tools_ip.add(ip)
 
-
             else:    
                 ts, ip, event = parse_auth_line(line) 
-                #This if statement will run for failed attement for either https and ssh logs
+
+
+            #This if statement will run for failed attement for either https and ssh logs
             if ts and ip and event == "failed":   
                 per_ip_timestamps[ip].append(ts)
 
     for ip, ts in per_ip_timestamps.items():
         sorted_ts = sorted(ts) # sorting the timestamps
         formatted_ts = [t.strftime("%Y-%b-%d %H:%M:%S") for t in sorted_ts] # formatting the timestamps and putting int a list
-        output[ip] = formatted_ts # storing the formatted timestamps in the output dictionary
+        if ip not in output:
+            output[ip] = {}
+        output[ip]['timestamps'] = formatted_ts # storing the formatted timestamps in the output dictionary
     
 incidents = [] # make a list called incidents to store the results
 window = timedelta(minutes=10) #define the time delta window of 10 minutes
@@ -143,9 +165,39 @@ for ip, times in per_ip_timestamps.items(): #iterate through the dictionary
             i = j + 1
         else:
             i += 1
-print(f"{len(incidents)} brute-force incidents found:")
-for i in incidents:
-    print(i)
+RESET = '\033[0m'
+RED = '\033[91m'
+GREEN = '\033[92m'
+CYAN = '\033[96m'
+YELLOW_BG = '\033[103m'
+MAGENTA = '\033[95m'
+
+print('\n' + '=' * 52 + ' INCIDENT REPORT ' + '=' * 52 + '\n')
+print(f"{len(incidents)} brute-force incidents found")
+print('*----------------------------------*')
+
+grouped = defaultdict(list)
+for incident in incidents:
+    grouped[incident['ip']].append(incident)
+
+# Print each IP once, then all its details
+for ip, records in grouped.items():
+    ip_colored = f"{CYAN}{YELLOW_BG}{ip}{RESET}"
+    print(f"IP: {ip_colored}")
+    
+    for record in records:
+        count = f"{RED}{record['count']}{RESET}"
+        first = f"{GREEN}{record['first']}{RESET}"
+        last = f"{GREEN}{record['last']}{RESET}"
+        print(f"  Count: {count}, First: {first}, Last: {last}")
+    
+    print(f"{MAGENTA}{'*' * 100}{RESET}")
+
+# Suspicious tool IPs
+print("\nIPs using tools and accessing suspicious paths: ")
+for ip in sucpicious_tools_ip:
+    print(f"{CYAN}{YELLOW_BG}{ip}{RESET}")
+    print(f"{MAGENTA}{'-'*30}{RESET}")
 
 #make a bar chart of the top attacker IPs
 list_ips=[]
@@ -158,11 +210,9 @@ for i in incidents:
 print("IPs using tools and accessing suspicious paths: ")
 for ip in sucpicious_tools_ip:
     print(ip)
-    g_ip = g.ip('149.153.251.3') #example ip address as most of these ips are private ips
-    print(g_ip.country)
-
-
-
+    print('------------------------------')
+    
+    
 
 end = time.time()
 print("Elapsed:", end-start, "seconds")
@@ -183,5 +233,3 @@ plt.ylabel("Number of IPs")
 plt.tight_layout()
 plt.savefig("failed_attempts_hist.png")
 plt.show()"""
-
-#this shit is for pushing  
