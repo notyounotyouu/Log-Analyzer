@@ -96,82 +96,15 @@ print("Elapsed:", end-start, "seconds")
 
 #Retrieves geograhpic locatin based on a provided ip address
 class IPGeolocator:
+    g = geocoder.ip(log_file.log) # Initialize with any IP to set up the object
 
-    def Ip_Storing(self):
-        #Stores Ip's and prevents un-needed api calls
-        self.cache = {}
-
-    #A method to get location data for an IP address.
-    def locate_ip(self, ip_address: str) -> Optional[Dict]:
-        if ip_address in self.cache: # checks if ip is already in cache (un-needed api calls)
-            return self.cache[ip_address]
-
-        try:
-            geo = geocoder.ip(ip_address)
-        #
-            if geo.ok:
-                #Returns basic information about IP
-                location_data = {
-                    'ip': ip_address,
-                    'country': geo.country,
-                    'region': geo.state,
-                    'city': geo.city,
-                    'latitude': geo.lat,
-                    'longitude': geo.lng,
-                    'isp': geo.org
-                    }
-                self.cache[ip_address] = location_data
-                return location_data
-            else:
-                return None
-        except Exception as e:
-            print(f"Error locating IP {ip_address}: {e}")
-        return None
-        
-print("\n" + "="*60)
-print("GeoLocation Analysis")
-print("="*60)
-
-geolocator = IPGeolocator()
-print("\nGeolocating incident IP's...")
-for incident in incidents:
-        location = geolocator.locate_ip(incident["ip"])
-        if location:
-            print(f"incident[ip]: {incident['ip']}, Location: {location['city']}, {location['region']},
-                   {location['country']}, ISP: {location['isp']}")
+    for ip in list_ips:
+        g = geocoder.ip(ip)
+        if g.ok:
+            print(f"IP: {ip}, Country: {g.country}, City: {g.city}, LatLng: {g.latlng}")
         else:
-            print(f"incident[ip]: {incident['ip']}, Location: Not found")
+            print(f"IP: {ip}, Location not found")
 
-        
-country_count = defaultdict(int)
-country_ips = defaultdict(list)
-for incident in incidents:
-    location = geolocator.locate_ip(incident["ip"])
-    if location and location['country']:
-        country = location['country']
-        country_count[country] += 1
-        country_ips[country].append(incident["ip"])
-
-print("\n" + "="*60)
-print("Incident Summary by Country")
-print("="*60)
-for country, count in country_count.items():
-    ips = country_ips[country]
-    print(f"Country: {country}, Incidents: {count}, IPs: {', '.join(ips)}")
-
-if country_count
-    plt.figure(figsize=(10, 6))
-    countries = list(country_count.keys())
-    counts = list(country_count.values())
-
-    plt.bar(countries, counts, color='blue')
-    plt.title("Number of Incidents by Country")
-    plt.xlabel("Country")
-    plt.ylabel("Total Failed attempts")
-    plt.xticks(rotation = 45)
-    plt.tight_layout()
-    plt.savefig("Attacks_by_country.png")
-    plt.show()
     
 
 
