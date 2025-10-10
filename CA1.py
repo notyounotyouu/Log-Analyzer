@@ -142,7 +142,7 @@ if __name__ == "__main__":
                     keywords = ['login', 'admin', 'phpinfo', 'secret', 'passwd']
                     tools = ['sqlmap', 'curl', 'wget']
                     if any(k in request_lower for k in keywords) and any(t in ua_lower for t in tools):
-                        sucpicious_tools_ip.add(ip)
+                        suspicious_tools_ip.add(ip)
 
             else:    
                 ts, ip, event, country = parse_auth_line(line) 
@@ -189,9 +189,9 @@ CYAN = '\033[96m'
 YELLOW_BG = '\033[103m'
 MAGENTA = '\033[95m'
 
-print('\n' + '=' * 52 + ' INCIDENT REPORT ' + '=' * 52 + '\n')
+print('\n' + '=' * 54 + ' INCIDENT REPORT ' + '=' * 54 + '\n')
 print(f"{len(incidents)} brute-force incidents found")
-print('*----------------------------------*')
+print('*----------------------------------*\n')
 
 grouped = defaultdict(list)
 for incident in incidents:
@@ -209,11 +209,11 @@ for ip, records in grouped.items():
         last = f"{GREEN}{record['last']}{RESET}"
         print(f"  Count: {count}, First: {first}, Last: {last}")
 
-    print(f"{MAGENTA}{'*' * 100}{RESET}")
+    print(f"{MAGENTA}{'-' * 100}{RESET}")
 
 # Suspicious tool IPs
 print("\nIPs using tools and accessing suspicious paths: ")
-for ip in sucpicious_tools_ip:
+for ip in suspicious_tools_ip:
     print(f"{CYAN}{YELLOW_BG}{ip}{RESET}")
     print(f"{MAGENTA}{'-'*30}{RESET}")
 
@@ -224,13 +224,6 @@ colors=['red','yellow','pink']
 for i in incidents:
     list_ips.append(i["ip"])
     list_count.append(i["count"])
-
-print("IPs using tools and accessing suspicious paths: ")
-for ip in sucpicious_tools_ip:
-    print(ip)
-    print('------------------------------')
-    
-    
 
 end = time.time()
 print("Elapsed:", end-start, "seconds")
