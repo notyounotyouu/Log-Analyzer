@@ -94,18 +94,7 @@ plt.show()
 end = time.time()
 print("Elapsed:", end-start, "seconds")
 
-#Retrieves geographic location based on a provided IP address
-# You may want to use the IPs from the incidents list for geolocation
-valid_ips = [i["ip"] for i in incidents] # extract unique IPs from incidents
-list_ips = list(set(valid_ips)) # remove duplicates by converting to a set and back to
 
-
-for ip in list_ips:
-    g = geocoder.ip(ip)
-    if g.ok:
-        print(f"IP: {ip}, Country: {g.country}, City: {g.city}, LatLng: {g.latlng}")
-    else:
-        print(f"IP: {ip}, Location not found")
     
 
 
