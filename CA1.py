@@ -13,7 +13,7 @@ start = time.time()     #timing gear
 LOGFILE = "log_file.log"
 sorted_list=[] 
 output={}
-sucpicious_tools_ip = set()     #a set of all suspicious unique ip address
+suspicious_tools_ip = set()     #a set of all suspicious unique ip address
 
 
 def parse_auth_line(line):
@@ -37,10 +37,12 @@ def parse_auth_line(line):
         try:
             idx = parts.index("from")   #logs the index of the word from
             ip = parts[idx+1]   #gets ip address
+            ip= ip.strip(',')  #removes any commas
         except (ValueError, IndexError):
             ip = None
-    ip_pattern = re.compile(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b') #regex pattern to match private ipv4 address
-    if ip and not ip_pattern.match(ip):
+
+    ip_pattern = re.compile(r'(?:[0-9]{1,3}\.){3}[0-9]{1,3}')
+    if ip and not ip_pattern.fullmatch(ip):
         ip = None
 
     #check if the ip is private or public
@@ -48,12 +50,26 @@ def parse_auth_line(line):
         try:
             ip_obj = ipaddress.ip_address(ip)
             is_private = ip_obj.is_private
+
+            # Perform GeoIP lookup only if not private
+            if not is_private:
+                try:
+                    geo = g.ip(ip) # gets the ip address details using geocoder
+                    if geo and geo.country:
+                        country = geo.country
+                    else:
+                        country = "Unknown"
+                except Exception:
+                    country = "Lookup Failed"
+            else:
+                country = "Private Address"
+
         except ValueError:
             ip = None
             is_private = None
+            country = None
 
-
-    return ts, ip, event_type
+    return ts, ip, event_type,country
 
 
 
@@ -129,7 +145,7 @@ if __name__ == "__main__":
                         sucpicious_tools_ip.add(ip)
 
             else:    
-                ts, ip, event = parse_auth_line(line) 
+                ts, ip, event, country = parse_auth_line(line) 
 
 
             #This if statement will run for failed attement for either https and ssh logs
@@ -159,7 +175,8 @@ for ip, times in per_ip_timestamps.items(): #iterate through the dictionary
                 "ip": ip,
                 "count": count,
                 "first": times[i].isoformat(),
-                "last": times[j].isoformat()
+                "last": times[j].isoformat(),
+                "country": country
             })
             # advance i past this cluster to avoid duplicate overlapping reports:
             i = j + 1
@@ -183,14 +200,15 @@ for incident in incidents:
 # Print each IP once, then all its details
 for ip, records in grouped.items():
     ip_colored = f"{CYAN}{YELLOW_BG}{ip}{RESET}"
-    print(f"IP: {ip_colored}")
-    
+    country_colored = f"{GREEN}{records[0]['country']}{RESET}"
+    print(f"IP: {ip_colored}  Country: {country_colored}")
+
     for record in records:
         count = f"{RED}{record['count']}{RESET}"
         first = f"{GREEN}{record['first']}{RESET}"
         last = f"{GREEN}{record['last']}{RESET}"
         print(f"  Count: {count}, First: {first}, Last: {last}")
-    
+
     print(f"{MAGENTA}{'*' * 100}{RESET}")
 
 # Suspicious tool IPs
@@ -216,6 +234,7 @@ for ip in sucpicious_tools_ip:
 
 end = time.time()
 print("Elapsed:", end-start, "seconds")
+
 """    
 
 plt.figure(figsize=(12,5))
