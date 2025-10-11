@@ -1,13 +1,12 @@
-# lab2.3_starter.py
 import json
 from collections import defaultdict
-from datetime import datetime
-from datetime import timedelta
-import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+import matplotlib.pyplot as  plt
 import time
 import geocoder as g
 import ipaddress
 import re
+import questionary
 
 start = time.time()     #timing gear
 LOGFILE = "log_file.log"
@@ -15,6 +14,14 @@ sorted_list=[]
 output={}
 suspicious_tools_ip = set()     #a set of all suspicious unique ip address
 
+# Color codes for terminal output
+RESET = '\033[0m'
+RED = '\033[91m'
+GREEN = '\033[92m'
+CYAN = '\033[96m'
+YELLOW_BG = '\033[103m'
+MAGENTA = '\033[95m'
+BLUE = '\033[94m'
 
 def parse_auth_line(line):
     parts = line.split()
@@ -69,9 +76,7 @@ def parse_auth_line(line):
             is_private = None
             country = None
 
-    return ts, ip, event_type,country
-
-
+    return ts, ip, event_type, country
 
 def parse_http_line(line):
     try:
@@ -126,16 +131,18 @@ def parse_http_line(line):
     except Exception:
         return None, None, "other", None, None, None
 
-
 def is_http_line(line):
     return line[0].isdigit() and ("[" in line and "]" in line and '"' in line) # checking the apache style log entries and return boolean value
 
-if __name__ == "__main__":
-    per_ip_timestamps = defaultdict(list) 
+def analyze_logs():
+    """Analyze logs and return incidents and suspicious IPs"""
+    per_ip_timestamps = defaultdict(list)
+    suspicious_tools_ip = set()
+    
     with open(LOGFILE) as f: 
         for line in f: 
             if is_http_line(line):
-                ts,ip,event,request,status,ua = parse_http_line(line)
+                ts, ip, event, request, status, ua = parse_http_line(line)
                 if ts and ip:
                     request_lower = request.lower() #converts the requests to lower case
                     ua_lower = ua.lower() #converts the ua to lower case 
@@ -145,103 +152,211 @@ if __name__ == "__main__":
                         suspicious_tools_ip.add(ip)
 
             else:    
-                ts, ip, event, country = parse_auth_line(line) 
-
+                ts, ip, event, country = parse_auth_line(line)
 
             #This if statement will run for failed attement for either https and ssh logs
             if ts and ip and event == "failed":   
                 per_ip_timestamps[ip].append(ts)
 
-    for ip, ts in per_ip_timestamps.items():
-        sorted_ts = sorted(ts) # sorting the timestamps
-        formatted_ts = [t.strftime("%Y-%b-%d %H:%M:%S") for t in sorted_ts] # formatting the timestamps and putting int a list
-        if ip not in output:
-            output[ip] = {}
-        output[ip]['timestamps'] = formatted_ts # storing the formatted timestamps in the output dictionary
+    # Detect brute force incidents
+    incidents = [] # make a list called incidents to store the results
+    window = timedelta(minutes=10) #define the time delta window of 10 minutes
+    for ip, times in per_ip_timestamps.items(): #iterate through the dictionary
+        times.sort() #sort timestamps
+        n = len(times) #get the length of the timestamps list
+        i = 0
+        while i < n:
+            j = i
+            while j + 1 < n and (times[j+1] - times[i]) <= window:
+                j += 1
+            count = j - i + 1
+            if count >= 5: # if there are 5 or more failed attempts in the window
+                # Get country for this IP
+                country = "Unknown"
+                try:
+                    ip_obj = ipaddress.ip_address(ip)
+                    if not ip_obj.is_private:
+                        geo = g.ip(ip)
+                        country = geo.country if geo and geo.country else "Unknown"
+                    else:
+                        country = "Private Address"
+                except:
+                    country = "Lookup Failed"
+                    
+                incidents.append({
+                    "ip": ip,
+                    "count": count,
+                    "first": times[i].isoformat(),
+                    "last": times[j].isoformat(),
+                    "country": country
+                })
+                # advance i past this cluster to avoid duplicate overlapping reports:
+                i = j + 1
+            else:
+                i += 1
+                
+    return incidents, suspicious_tools_ip, per_ip_timestamps
+
+def display_incidents(incidents):
+    """Display incidents in a formatted way"""
+    print('\n' + '=' * 52 + ' INCIDENT REPORT ' + '=' * 52 + '\n')
+    print(f"{len(incidents)} brute-force incidents found")
+    print('*----------------------------------*')
+
+    grouped = defaultdict(list)
+    for incident in incidents:
+        grouped[incident['ip']].append(incident)
+
+    # Print each IP once, then all its details
+    for ip, records in grouped.items():
+        ip_colored = f"{CYAN}{YELLOW_BG}{ip}{RESET}"
+        country_colored = f"{GREEN}{records[0]['country']}{RESET}"
+        print(f"IP: {ip_colored}  Country: {country_colored}")
+
+        for record in records:
+            count = f"{RED}{record['count']}{RESET}"
+            first = f"{GREEN}{record['first']}{RESET}"
+            last = f"{GREEN}{record['last']}{RESET}"
+            print(f"  Count: {count}, First: {first}, Last: {last}")
+
+        print(f"{MAGENTA}{'*' * 100}{RESET}")
+
+def display_suspicious_ips(suspicious_tools_ip):
+    """Display suspicious IPs using tools"""
+    print("\nIPs using tools and accessing suspicious paths: ")
+    for ip in suspicious_tools_ip:
+        print(f"{CYAN}{YELLOW_BG}{ip}{RESET}")
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+            if not ip_obj.is_private:
+                geo = g.ip(ip)
+                country = geo.country if geo and geo.country else "Unknown"
+                print(f"  Country: {GREEN}{country}{RESET}")
+            else:
+                print(f"  Type: {BLUE}Private Address{RESET}")
+        except:
+            print(f"  Geolocation: {RED}Failed{RESET}")
+        print(f"{MAGENTA}{'-'*30}{RESET}")
+
+def create_histogram(incidents):
+    """Create histogram using plotext for terminal display"""
+    if not incidents:
+        print(f"{RED}No incidents to plot.{RESET}")
+        return
+        
+    # Aggregate counts per IP to avoid duplicate IPs in the plot
+# The following code is commented out and replaced by the code below.
+# ip_counts = defaultdict(int)
+# for i in incidents:
+#     ip_counts[i["ip"]] += i["count"]
+# list_ips = list(ip_counts.keys())
+# list_count = list(ip_counts.values())
+# plt.clf()
+# plt.bar(list_ips, list_count)
+# plt.title("Top attacker IPs")
+# plt.xlabel("IP")
+# plt.ylabel("Failed attempts")
+# plt.show()
+
+    list_ips = []
+    list_count = []
+    colors = ['red', 'yellow', 'pink']
+    for i in incidents:
+        list_ips.append(i["ip"])
+        list_count.append(i["count"])
+    #Leahy - Made figure wider so as IPs don't overlap.
+    plt.figure(figsize=(20,5)) 
+    plt.bar(list_ips, list_count)
+    plt.title("Top attacker IPs")
+    plt.xlabel("IP")
+    plt.ylabel("Failed attempts")
+    plt.tight_layout()
+    plt.savefig("top_attackers.png")
+    plt.show()
+
+def save_results_to_file(incidents, suspicious_tools_ip, filename="security_report.txt"):
+    """Save analysis results to a file"""
+    with open(filename, 'w') as f:
+        f.write("SECURITY ANALYSIS REPORT\n")
+        f.write("=" * 60 + "\n\n")
+        
+        f.write(f"BRUTE FORCE INCIDENTS ({len(incidents)} found)\n")
+        f.write("-" * 40 + "\n")
+        for incident in incidents:
+            f.write(f"IP: {incident['ip']}\n")
+            f.write(f"  Count: {incident['count']}\n")
+            f.write(f"  First: {incident['first']}\n")
+            f.write(f"  Last: {incident['last']}\n")
+            f.write(f"  Country: {incident['country']}\n\n")
+        
+        f.write(f"SUSPICIOUS TOOL USAGE ({len(suspicious_tools_ip)} IPs)\n")
+        f.write("-" * 40 + "\n")
+        for ip in suspicious_tools_ip:
+            f.write(f"IP: {ip}\n")
     
-incidents = [] # make a list called incidents to store the results
-window = timedelta(minutes=10) #define the time delta window of 10 minutes
-for ip, times in per_ip_timestamps.items(): #iterate through the dictionary
-    times.sort() #sort timestamps
-    n = len(times) #get the length of the timestamps list
-    i = 0
-    while i < n:
-        j = i
-        while j + 1 < n and (times[j+1] - times[i]) <= window:
-            j += 1
-        count = j - i + 1
-        if count >= 5: # if there are 5 or more failed attempts in the window
-            incidents.append({
-                "ip": ip,
-                "count": count,
-                "first": times[i].isoformat(),
-                "last": times[j].isoformat(),
-                "country": country
-            })
-            # advance i past this cluster to avoid duplicate overlapping reports:
-            i = j + 1
-        else:
-            i += 1
-RESET = '\033[0m'
-RED = '\033[91m'
-GREEN = '\033[92m'
-CYAN = '\033[96m'
-YELLOW_BG = '\033[103m'
-MAGENTA = '\033[95m'
+    print(f"{GREEN}Results saved to {filename}{RESET}")
 
-print('\n' + '=' * 54 + ' INCIDENT REPORT ' + '=' * 54 + '\n')
-print(f"{len(incidents)} brute-force incidents found")
-print('*----------------------------------*\n')
+def main_menu():
+    """Main interactive menu"""
+    incidents = []
+    suspicious_tools_ip = set()
+    per_ip_timestamps = defaultdict(list)
+    
+    while True:
+        choice = questionary.select(
+            "Security Log Analysis Menu",
+            choices=[
+                "1. Analyze Logs",
+                "2. Show Brute Force Incidents", 
+                "3. Show Suspicious Tool Usage",
+                "4. Generate Bar Chart of Top Attackers",
+                "5. Save Results to File",
+                "6. Exit"
+            ]
+        ).ask()
 
-grouped = defaultdict(list)
-for incident in incidents:
-    grouped[incident['ip']].append(incident)
+        if choice == "1. Analyze Logs":
+            print(f"{BLUE}Analyzing logs...{RESET}")
+            incidents, suspicious_tools_ip, per_ip_timestamps = analyze_logs()
+            print(f"{GREEN}Analysis complete!{RESET}")
+            print(f"  - Found {len(incidents)} brute force incidents")
+            print(f"  - Found {len(suspicious_tools_ip)} suspicious IPs using tools")
+            
+        elif choice == "2. Show Brute Force Incidents":
+            if not incidents:
+                print(f"{YELLOW_BG}No incidents found. Please analyze logs first.{RESET}")
+                continue
+            display_incidents(incidents)
+            
+        elif choice == "3. Show Suspicious Tool Usage":
+            if not suspicious_tools_ip:
+                print(f"{YELLOW_BG}No suspicious IPs found. Please analyze logs first.{RESET}")
+                continue
+            display_suspicious_ips(suspicious_tools_ip)
+            
+        elif choice == "4. Generate Bar Chart of Top Attackers":
+            if not incidents:
+                print(f"{YELLOW_BG}No incidents found. Please analyze logs first.{RESET}")
+                continue
+            create_histogram(incidents)
+            
+        elif choice == "5. Save Results to File":
+            if not incidents and not suspicious_tools_ip:
+                print(f"{YELLOW_BG}No data to save. Please analyze logs first.{RESET}")
+                continue
+            filename = questionary.text("Enter filename:", default="security_report.txt").ask()
+            save_results_to_file(incidents, suspicious_tools_ip, filename)
+            
+        elif choice == "6. Exit":
+            print(f"{GREEN}Goodbye!{RESET}")
+            break
+        
+        # Pause between actions
+        if choice != "6. Exit":
+            questionary.press_any_key_to_continue(f"press any key to continue....").ask()
 
-# Print each IP once, then all its details
-for ip, records in grouped.items():
-    ip_colored = f"{CYAN}{YELLOW_BG}{ip}{RESET}"
-    country_colored = f"{GREEN}{records[0]['country']}{RESET}"
-    print(f"IP: {ip_colored}  Country: {country_colored}")
-
-    for record in records:
-        count = f"{RED}{record['count']}{RESET}"
-        first = f"{GREEN}{record['first']}{RESET}"
-        last = f"{GREEN}{record['last']}{RESET}"
-        print(f"  Count: {count}, First: {first}, Last: {last}")
-
-    print(f"{MAGENTA}{'-' * 100}{RESET}")
-
-# Suspicious tool IPs
-print("\nIPs using tools and accessing suspicious paths: ")
-for ip in suspicious_tools_ip:
-    print(f"{CYAN}{YELLOW_BG}{ip}{RESET}")
-    print(f"{MAGENTA}{'-'*30}{RESET}")
-
-#make a bar chart of the top attacker IPs
-list_ips=[]
-list_count=[]
-colors=['red','yellow','pink']
-for i in incidents:
-    list_ips.append(i["ip"])
-    list_count.append(i["count"])
-
-end = time.time()
-print("Elapsed:", end-start, "seconds")
-
-"""    
-
-plt.figure(figsize=(12,5))
-
-plt.figure(figsize=(12,5))
-
-# Histogram of failed attempts
-plt.hist(list_count, bins=10, color='skyblue', edgecolor='black')  # adjust bins as needed
-
-# Labels and title
-plt.title("Distribution of Failed Attempts per IP")
-plt.xlabel("Number of Failed Attempts")
-plt.ylabel("Number of IPs")
-
-plt.tight_layout()
-plt.savefig("failed_attempts_hist.png")
-plt.show()"""
+if __name__ == "__main__":
+    print(f"{CYAN}{'='*70}{RESET}")
+    print(f"{CYAN}    SECURITY LOG ANALYSIS TOOL{RESET}")
+    print(f"{CYAN}{'='*70}{RESET}")
+    main_menu()
