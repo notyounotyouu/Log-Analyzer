@@ -235,20 +235,21 @@ for ip in sucpicious_tools_ip:
 end = time.time()
 print("Elapsed:", end-start, "seconds")
 
-"""    
-
-plt.figure(figsize=(12,5))
-
-plt.figure(figsize=(12,5))
-
 # Histogram of failed attempts
 plt.hist(list_count, bins=10, color='skyblue', edgecolor='black')  # adjust bins as needed
 
-# Labels and title
-plt.title("Distribution of Failed Attempts per IP")
-plt.xlabel("Number of Failed Attempts")
-plt.ylabel("Number of IPs")
 
 plt.tight_layout()
 plt.savefig("failed_attempts_hist.png")
-plt.show()"""
+plt.show()
+
+plt.figure(figsize=(20,5)) 
+plt.bar(list_ips, list_count)
+plt.title("Distribution of Failed Attempts per IP")
+plt.xlabel("Number of Failed Attempts")
+plt.ylabel("Number of IPs")
+plt.tight_layout()
+plt.savefig("top_attackers.png")
+plt.show()
+end = time.time()
+print("Elapsed:", end-start, "seconds")
