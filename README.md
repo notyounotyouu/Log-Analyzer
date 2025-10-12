@@ -1,38 +1,36 @@
-# scripting-CA1-
+# Scripting-CA1-
 
 Group members:
   1. Nithin kumaran C00313547
   2. Joel Biju  C00312179
   3. Emmett Leahy C00311509
 
+#  Security Log Analysis Tool
 
-Resources
+A Python-based security log analysis tool that detects brute force attacks and suspicious activities from SSH and web server logs.
 
-https://www.datacamp.com/cheat-sheet/matplotlib-cheat-sheet-plotting-in-python
+##  Features
 
-We can use Api's & a geocoder library
-Using Multiple Providers – geocoder supports various APIs like:
-OpenStreetMap (osm)
-Google
-Bing
-Here
-ArcGIS
-IPinfo
-MaxMind
+###  Security Detection
+- **Brute Force Attack Detection** - Identifies clusters of failed login attempts
+- **Suspicious Tool Usage** - Detects hacking tools like sqlmap, curl, wget
+- **GeoIP Tracking** - Maps attacker IPs to countries (public IPs only)
+- **Multi-log Support** - Parses both SSH (`auth.log`) and Apache access logs
 
-Geocoder
-https://pypi.org/project/geocoder/
+###  Visualization
+- **Interactive CLI Menu** - Beautiful terminal interface with Questionary
+- **Matplotlib Charts** - Professional GUI visualizations
 
-CLI Resources 
+## Prerequisites
+- Python 3.8 or higher
+- pip package manager
 
-questionary - can make menu like intefaces in command line 
-https://pypi.org/project/questionary/#usage
+## librarys needed
+```bash
+pip install matplotlib
+pip install geocoder
+```
 
-https://geocoder.readthedocs.io/results.html
-
-
-Free-Api key
-https://ip-api.com/docs/api:json
 
 
 
