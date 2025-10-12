@@ -48,15 +48,17 @@ def parse_auth_line(line):
         except (ValueError, IndexError):
             ip = None
 
-    ip_pattern = re.compile(r'(?:[0-9]{1,3}\.){3}[0-9]{1,3}')
+    ip_pattern = re.compile(r'(?:[0-9]{1,3}\.){3}[0-9]{1,3}') #used to split up the ip address into 4 octets
+
+    # Validate IP format
     if ip and not ip_pattern.fullmatch(ip):
-        ip = None
+        ip = None # if fail returns none
 
     #check if the ip is private or public
     if ip:
         try:
             ip_obj = ipaddress.ip_address(ip)
-            is_private = ip_obj.is_private
+            is_private = ip_obj.is_private #checks if the ip is private or not
 
             # Perform GeoIP lookup only if not private
             if not is_private:
@@ -244,19 +246,6 @@ def create_histogram(incidents):
         print(f"{RED}No incidents to plot.{RESET}")
         return
         
-    # Aggregate counts per IP to avoid duplicate IPs in the plot
-# The following code is commented out and replaced by the code below.
-# ip_counts = defaultdict(int)
-# for i in incidents:
-#     ip_counts[i["ip"]] += i["count"]
-# list_ips = list(ip_counts.keys())
-# list_count = list(ip_counts.values())
-# plt.clf()
-# plt.bar(list_ips, list_count)
-# plt.title("Top attacker IPs")
-# plt.xlabel("IP")
-# plt.ylabel("Failed attempts")
-# plt.show()
 
     list_ips = []
     list_count = []
