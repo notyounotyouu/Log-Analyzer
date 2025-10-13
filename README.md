@@ -29,6 +29,7 @@ A Python-based security log analysis tool that detects brute force attacks and s
 ```bash
 pip install matplotlib
 pip install geocoder
+pip install questionary
 ```
 
 
