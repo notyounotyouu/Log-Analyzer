@@ -18,8 +18,8 @@ A Python-based security log analysis tool that detects brute force attacks and s
 - **Multi-log Support** - Parses both SSH (`auth.log`) and Apache access logs
 
 ###  Visualization
-- **Interactive CLI Menu** - Beautiful terminal interface with Questionary
-- **Matplotlib Charts** - Professional GUI visualizations
+- **Interactive CLI Menu** -terminal interface with Questionary
+- **Matplotlib Charts** -  GUI visualizations
 
 ## Prerequisites
 - Python 3.8 or higher
